@@ -34,7 +34,24 @@ main = do
     arrDA = DiffArray.fromList list
   print $ fooA arrA
   print $ fooDA arrDA
+  let
+    !arr10 = DiffArray.fromList list
+    !arr9 = DiffArray.set 0 0 arr10
+    !arr8 = DiffArray.set 0 0 arr9
+    !arr7 = DiffArray.set 0 0 arr8
+    !arr6 = DiffArray.set 0 0 arr7
+    !arr5 = DiffArray.set 0 0 arr6
+    !arr4 = DiffArray.set 0 0 arr5
+    !arr3 = DiffArray.set 0 0 arr4
+    !arr2 = DiffArray.set 0 0 arr3
+    !arr1 = DiffArray.set 0 0 arr2
+    !arr0 = DiffArray.set 0 0 arr1
   defaultMain
-    [ bench "diffarray" $ whnf fooDA (DiffArray.fromList list)
-    , bench "array" $ whnf fooA (Array.fromList list)
+    [ bench "array" $ whnf fooA (Array.fromList list)
+    , bench "diffarray" $ whnf fooDA arr0
+    , bench "diffarray 1" $ whnf fooDA arr1
+    , bench "diffarray 2" $ whnf fooDA arr2
+    , bench "diffarray 5" $ whnf fooDA arr5
+    , bench "diffarray 7" $ whnf fooDA arr7
+    , bench "diffarray 10" $ whnf fooDA arr10
     ]
