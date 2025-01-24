@@ -39,13 +39,15 @@ set :: Int -> a -> DiffArray a -> DiffArray a
 set (I# i) x (DA v) = runRW# $ \s ->
   case readMutVar# v s of
     (# s , xs@(Current arr) #) ->
+      case readArray# arr i s of
+      { (# s , y #) ->
       case writeArray# arr i x s of
       { s ->
       case newMutVar# xs s of
       { (# s , v' #) ->
-      case writeMutVar# v (Diff i x v') s of
+      case writeMutVar# v (Diff i y v') s of
       { !_ -> DA v'
-      }}}
+      }}}}
     -- making a change to an old version of the array
     -- we copy to anticipate more usage
     (# s, Diff j y v' #) ->
