@@ -10,15 +10,15 @@ import Data.Kind (Type)
 data DiffArray a = DA (MutVar# RealWorld (DiffArrayData a))
 type DiffArrayData :: Type -> UnliftedType
 data DiffArrayData a
-  = Here {-# UNPACK #-} !(MutableArray# RealWorld a)
-  | There Int# a !(DiffArrayData a)
+  = Current {-# UNPACK #-} !(MutableArray# RealWorld a)
+  | Diff Int# a (MutVar# RealWorld (DiffArrayData a))
 
 {-# NOINLINE fromList #-}
 fromList :: [a] -> DiffArray a
 fromList xs = DA (runRW# $ \s ->
-  case newArray# (case length xs of I# x -> x) undefined s of
+  case newArray# (case length xs of (I# n) -> n) undefined s of
   { (# s , arr #) ->
-  case newMutVar# (Here arr) (go arr 0# xs s) of
+  case newMutVar# (Current arr) (go arr 0# xs s) of
   { (# _ , x #) -> x
   }})
   where
@@ -28,23 +28,44 @@ fromList xs = DA (runRW# $ \s ->
 (!) :: DiffArray a -> Int -> a
 (!) (DA v) (I# i) = runRW# $ \s ->
   case readMutVar# v s of
-    (# s , Here arr #) ->
+    (# s , Current arr #) ->
       case readArray# arr i s of
         (# _ , x #) -> x
-    (# _ , There j x xs #)
+    (# _ , Diff j x xs #)
       | isTrue# (i ==# j) -> x
-      | otherwise ->
-        let
-          go (Here arr) = case readArray# arr i s of (# _ , x #) -> x
-          go (There j x xs)
-            | isTrue# (i ==# j) = x
-            | otherwise = go xs
-        in go xs
+      | otherwise -> DA xs ! (I# i)
 
 set :: Int -> a -> DiffArray a -> DiffArray a
 set (I# i) x (DA v) = runRW# $ \s ->
   case readMutVar# v s of
-    (# s , xs@(Here arr) #) ->
-      case newMutVar# xs (writeMutVar# v (There i x xs) (writeArray# arr i x s)) of
-        (# _ , v' #) -> DA v'
-    (# s, xs #) -> case newMutVar# (There i x xs) s of (# _ , v' #) -> DA v'
+    (# s , xs@(Current arr) #) ->
+      case writeArray# arr i x s of
+      { s ->
+      case newMutVar# xs s of
+      { (# s , v' #) ->
+      case writeMutVar# v (Diff i x v') s of
+      { !_ -> DA v'
+      }}}
+    -- making a change to an old version of the array
+    -- we copy it to anticipate more usage
+    (# s, Diff j y v' #) ->
+      case copy v' s of
+      { (# s , arr #) ->
+      case writeArray# arr j y s of
+      { s ->
+      case writeArray# arr i x s of
+      { s ->
+      case newMutVar# (Current arr) s of
+      { (# _ , v #) -> DA v
+      }}}}
+  where
+    copy :: MutVar# RealWorld (DiffArrayData a) -> State# RealWorld -> (# State# RealWorld , MutableArray# RealWorld a #)
+    copy v s =
+      case readMutVar# v s of
+        (# s , Current arr #) -> (# s , arr #)
+        (# s , Diff i x v #) ->
+          case copy v s of
+          { (# s , arr #) ->
+          case writeArray# arr i x s of
+          { s -> (# s , arr #)
+          }}

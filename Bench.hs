@@ -13,7 +13,7 @@ instance Indexable (DiffArray Int) where
   (!) = (DiffArray.!)
 
 loop :: Indexable a => a -> Int -> Int -> Int
-loop arr 1 s = s
+loop _ 1 s = s
 loop arr i s = loop arr (arr ! i) (s + 1)
 
 {-# NOINLINE fooA #-}
