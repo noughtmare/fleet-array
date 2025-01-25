@@ -94,7 +94,8 @@ set (I# i) x (DA v) = runRW# $ \s ->
 copyInternal :: MutVar# RealWorld (DiffArrayData a) -> State# RealWorld -> (# State# RealWorld, MutableArray# RealWorld a #)
 copyInternal v s =
   case readMutVar# v s of
-    (# s , Current arr #) -> (# s , arr #)
+    (# s , Current arr #) ->
+      cloneMutableArray# arr 0# (sizeofMutableArray# arr) s
     (# s , Diff i x v #) ->
       case copyInternal v s of
       { (# s , arr #) ->
