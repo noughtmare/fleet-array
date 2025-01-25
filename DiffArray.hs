@@ -77,33 +77,7 @@ index (I# i) (DA v) = helper v i where
         | isTrue# (i ==# j2) -> helper xs j1
         | otherwise -> helper xs i
 
-{-# INLINE set #-}
-set :: Int -> a -> DiffArray a -> DiffArray a
-set (I# i) x (DA v) = runRW# $ \s ->
-  case readMutVar# v s of
-    (# s , xs@(Current arr) #) ->
-      case readArray# arr i s of
-      { (# s , y #) ->
-      case writeArray# arr i x s of
-      { s ->
-      case newMutVar# xs s of
-      { (# s , v' #) ->
-      case writeMutVar# v (Diff (Set i y) v') s of
-      { !_ -> DA v'
-      }}}}
-    -- making a change to an old version of the array
-    -- we copy to anticipate more usage
-    (# s, Diff op v' #) ->
-      case copyInternal v' s of
-      { (# s , arr #) ->
-      case appOp arr op s of
-      { s ->
-      case writeArray# arr i x s of
-      { s ->
-      case newMutVar# (Current arr) s of
-      { (# _ , v'' #) -> DA v''
-      }}}}
-
+{-# INLINE appOp #-}
 appOp :: MutableArray# RealWorld a -> Op a -> State# RealWorld -> State# RealWorld
 appOp arr (Set i x) s = writeArray# arr i x s
 appOp arr (Swap i j) s =
@@ -113,27 +87,41 @@ appOp arr (Swap i j) s =
   writeArray# arr j x s
   }}}
 
-{-# INLINE swap #-}
-swap :: Int -> Int -> DiffArray a -> DiffArray a
-swap (I# i) (I# j) (DA v) = runRW# $ \s ->
+{-# INLINE invert #-}
+invert :: MutableArray# RealWorld a -> Op a -> State# RealWorld -> (# State# RealWorld, Op a #)
+invert _ (Swap i j) s = (# s , Swap i j #)
+invert arr (Set i _) s =
+  case readArray# arr i s of { (# s, y #) ->
+  (# s, Set i y #) }
+
+{-# INLINE appDiffOp #-}
+appDiffOp :: Op a -> DiffArray a -> DiffArray a
+appDiffOp op (DA v) = runRW# $ \s ->
   case readMutVar# v s of
     (# s , xs@(Current arr) #) ->
-      case appOp arr (Swap i j) s of { s ->
-      case newMutVar# xs s of
-      { (# s , v' #) ->
-      case writeMutVar# v (Diff (Swap i j) v') s of
-      { !_ -> DA v'
-      }}}
+      case invert arr op s of { (# s, op' #) ->
+      case appOp arr op s of { s ->
+      case newMutVar# xs s of { (# s , v' #) ->
+      case writeMutVar# v (Diff op' v') s of { !_ ->
+        DA v'
+      }}}}
     -- making a change to an old version of the array
     -- we copy to anticipate more usage
     (# s, Diff op v' #) ->
-      case copyInternal v' s of
-      { (# s , arr #) ->
+      case copyInternal v' s of { (# s , arr #) ->
       case appOp arr op s of { s ->
-      case appOp arr (Swap i j) s of { s ->
-      case newMutVar# (Current arr) s of
-      { (# _ , v'' #) -> DA v''
+      case appOp arr op s of { s ->
+      case newMutVar# (Current arr) s of { (# _ , v'' #) ->
+        DA v''
       }}}}
+
+{-# INLINE set #-}
+set :: Int -> a -> DiffArray a -> DiffArray a
+set (I# i) x = appDiffOp (Set i x)
+
+{-# INLINE swap #-}
+swap :: Int -> Int -> DiffArray a -> DiffArray a
+swap (I# i) (I# j) = appDiffOp (Swap i j)
 
 copyInternal :: MutVar# RealWorld (DiffArrayData a) -> State# RealWorld -> (# State# RealWorld, MutableArray# RealWorld a #)
 copyInternal v s =
