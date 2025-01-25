@@ -1,9 +1,10 @@
 {-# LANGUAGE MagicHash, UnboxedTuples, UnliftedDatatypes #-}
 {-# OPTIONS_GHC -Wall -Wno-name-shadowing #-}
 
-module DiffArray (DiffArray, fromList, (!), set, copy) where
+module DiffArray (DiffArray, fromList, toList, (!), index, set, copy) where
 
-import GHC.Exts hiding (fromList)
+import GHC.Exts hiding (fromList, toList)
+import Data.Tuple (Solo (MkSolo))
 
 import Data.Kind (Type)
 
@@ -12,6 +13,9 @@ type DiffArrayData :: Type -> UnliftedType
 data DiffArrayData a
   = Current {-# UNPACK #-} !(MutableArray# RealWorld a)
   | Diff Int# a (MutVar# RealWorld (DiffArrayData a))
+
+instance Show a => Show (DiffArray a) where
+  show xs = "fromList " ++ show (toList xs)
 
 fromList :: [a] -> DiffArray a
 fromList xs = DA (runRW# $ \s ->
@@ -24,6 +28,21 @@ fromList xs = DA (runRW# $ \s ->
     go _ _ [] s = s
     go arr i (x:xs) s = go arr (i +# 1#) xs (writeArray# arr i x s)
 
+toList :: DiffArray a -> [a]
+toList (DA v) = runRW# $ \s ->
+  case copyInternal v s of
+  { (# s, arr #) ->
+    let
+      n = sizeofMutableArray# arr
+      go i s
+        | isTrue# (i >=# n) = []
+        | otherwise =
+          case readArray# arr i s of
+          { (# s, x #) -> x : go (i +# 1#) s
+          }
+    in go 0# s
+  }
+
 (!) :: DiffArray a -> Int -> a
 DA v ! I# i = helper v i where
   helper v i = runRW# $ \s ->
@@ -33,6 +52,17 @@ DA v ! I# i = helper v i where
           (# _ , x #) -> x
       (# _ , Diff j x xs #)
         | isTrue# (i ==# j) -> x
+        | otherwise -> helper xs i
+
+index :: Int -> DiffArray a -> Solo a
+index (I# i) (DA v) = helper v i where
+  helper v i = runRW# $ \s ->
+    case readMutVar# v s of
+      (# s , Current arr #) ->
+        case readArray# arr i s of
+          (# _ , x #) -> MkSolo x
+      (# _ , Diff j x xs #)
+        | isTrue# (i ==# j) -> MkSolo x
         | otherwise -> helper xs i
 
 set :: Int -> a -> DiffArray a -> DiffArray a

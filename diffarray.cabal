@@ -12,7 +12,7 @@ common warnings
 executable diffarray
     import:           warnings
     main-is:          Bench.hs
-    other-modules: Array, DiffArray
+    other-modules: Array, DiffArray, Quicksort
     build-depends:    base, tasty-bench
     hs-source-dirs:   .
     default-language: GHC2021
