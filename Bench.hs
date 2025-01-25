@@ -3,6 +3,8 @@ import qualified Array
 import Test.Tasty.Bench
 import qualified DiffArray
 import DiffArray (DiffArray)
+import Quicksort (quicksort)
+import qualified QuicksortA
 
 class Indexable a where
   (!) :: a -> Int -> Int
@@ -46,6 +48,7 @@ main = do
     !arr2 = DiffArray.set 0 0 arr3
     !arr1 = DiffArray.set 0 0 arr2
     !arr0 = DiffArray.set 0 0 arr1
+  !marr <- QuicksortA.fromList list
   defaultMain
     [ bench "array" $ whnf fooA (Array.fromList list)
     , bench "diffarray" $ whnf fooDA arr0
@@ -54,4 +57,6 @@ main = do
     , bench "diffarray 5" $ whnf fooDA arr5
     , bench "diffarray 7" $ whnf fooDA arr7
     , bench "diffarray 10" $ whnf fooDA arr10
+    , bench "quicksortA" $ whnfIO (QuicksortA.clone marr >>= \marr' -> QuicksortA.quicksort marr' 0 9973)
+    , bench "quicksort" $ whnf (Quicksort.quicksort 0 9973) (DiffArray.fromList list)
     ]

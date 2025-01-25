@@ -1,11 +1,11 @@
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
 module Quicksort where
 
 import DiffArray
 import Data.Tuple (Solo (..))
 
-swap :: Int -> Int -> DiffArray a -> DiffArray a
-swap !i !j !xs = set i (xs ! j) (set j (xs ! i) xs)
+-- swap :: Int -> Int -> DiffArray a -> DiffArray a
+-- swap !i !j !xs = set i (xs ! j) (set j (xs ! i) xs)
 
 swap' :: Int -> Int -> DiffArray a -> DiffArray a
 swap' !i !j !xs =
@@ -18,6 +18,7 @@ swap' !i !j !xs =
     !(MkSolo y) = index j xs
   in set i y (set j x xs)
 
+{-# NOINLINE quicksort #-}
 quicksort :: Ord a => Int -> Int -> DiffArray a -> DiffArray a
 quicksort !l !r !xs
   | r - l <= 1 = xs

@@ -1,5 +1,5 @@
 {-# LANGUAGE MagicHash, UnboxedTuples, UnliftedDatatypes #-}
-{-# OPTIONS_GHC -Wall -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
 
 module DiffArray (DiffArray, fromList, toList, (!), index, set, copy) where
 
