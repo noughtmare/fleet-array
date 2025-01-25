@@ -24,9 +24,7 @@ quicksort !l !r !xs
   | otherwise =
     let !(MkSolo x) = index (r - 1) xs in
     case partition l (r - 1) xs x of
-      (xs, m)
-        | m == r -> quicksort l (r - 1) xs
-        | otherwise -> quicksort l m (quicksort (m + 1) r (swap' (r - 1) m xs))
+      (xs, m) -> quicksort l m (quicksort (m + 1) r (swap' (r - 1) m xs))
 
 partition :: Ord a => Int -> Int -> DiffArray a -> a -> (DiffArray a, Int)
 partition l r xs x = go xs l l where
