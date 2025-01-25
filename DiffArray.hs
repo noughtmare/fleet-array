@@ -43,6 +43,7 @@ toList (DA v) = runRW# $ \s ->
     in go 0# s
   }
 
+{-# INLINE (!) #-}
 (!) :: DiffArray a -> Int -> a
 DA v ! I# i = helper v i where
   helper v i = runRW# $ \s ->
@@ -54,6 +55,7 @@ DA v ! I# i = helper v i where
         | isTrue# (i ==# j) -> x
         | otherwise -> helper xs i
 
+{-# INLINE index #-}
 index :: Int -> DiffArray a -> Solo a
 index (I# i) (DA v) = helper v i where
   helper v i = runRW# $ \s ->
@@ -65,6 +67,7 @@ index (I# i) (DA v) = helper v i where
         | isTrue# (i ==# j) -> MkSolo x
         | otherwise -> helper xs i
 
+{-# INLINE set #-}
 set :: Int -> a -> DiffArray a -> DiffArray a
 set (I# i) x (DA v) = runRW# $ \s ->
   case readMutVar# v s of
@@ -88,7 +91,7 @@ set (I# i) x (DA v) = runRW# $ \s ->
       case writeArray# arr i x s of
       { s ->
       case newMutVar# (Current arr) s of
-      { (# _ , v #) -> DA v
+      { (# _ , v'' #) -> DA v''
       }}}}
 
 copyInternal :: MutVar# RealWorld (DiffArrayData a) -> State# RealWorld -> (# State# RealWorld, MutableArray# RealWorld a #)

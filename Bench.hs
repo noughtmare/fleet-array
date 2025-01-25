@@ -57,6 +57,7 @@ main = do
     , bench "diffarray 5" $ whnf fooDA arr5
     , bench "diffarray 7" $ whnf fooDA arr7
     , bench "diffarray 10" $ whnf fooDA arr10
-    , bench "quicksortA" $ whnfIO (QuicksortA.clone marr >>= \marr' -> QuicksortA.quicksort marr' 0 9973)
-    , bench "quicksort" $ whnf (Quicksort.quicksort 0 9973) (DiffArray.fromList list)
+    , bench "quicksort array" $ whnfIO (QuicksortA.clone marr >>= \marr' -> QuicksortA.quicksort marr' 0 9973)
+    , bench "quicksort diffarray" $ whnf (Quicksort.quicksort 0 9973) (DiffArray.copy arr0)
+    , bench "quicksort diffarray copy" $ whnf (Quicksort.quicksort 0 9973 . DiffArray.copy) arr0
     ]

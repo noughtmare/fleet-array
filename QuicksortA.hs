@@ -1,6 +1,6 @@
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
 {-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
-module QuicksortA (MutArr, fromList, toList, clone, swap, quicksort) where
+module QuicksortA (MutArr, fromList, toList, clone, quicksort) where
 
 import GHC.Exts hiding (fromList, toList)
 import GHC.IO (IO (IO))

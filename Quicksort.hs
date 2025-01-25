@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
-module Quicksort where
+module Quicksort (quicksort) where
 
 import DiffArray
 import Data.Tuple (Solo (..))
@@ -7,8 +7,8 @@ import Data.Tuple (Solo (..))
 -- swap :: Int -> Int -> DiffArray a -> DiffArray a
 -- swap !i !j !xs = set i (xs ! j) (set j (xs ! i) xs)
 
-swap' :: Int -> Int -> DiffArray a -> DiffArray a
-swap' !i !j !xs =
+swap :: Int -> Int -> DiffArray a -> DiffArray a
+swap !i !j !xs =
   let
     -- using this strict matching on MkSolo we
     -- can ensure that the indexing happens
@@ -25,13 +25,13 @@ quicksort !l !r !xs
   | otherwise =
     let !(MkSolo x) = index (r - 1) xs in
     case partition l (r - 1) xs x of
-      (xs, m) -> quicksort l m (quicksort (m + 1) r (swap' (r - 1) m xs))
+      (xs, m) -> quicksort l m (quicksort (m + 1) r (swap (r - 1) m xs))
 
 partition :: Ord a => Int -> Int -> DiffArray a -> a -> (DiffArray a, Int)
 partition l r xs x = go xs l l where
   go !xs !m !i
     | i == r = (xs, m)
-    | xs ! i <= x = go (swap' i m xs) (m + 1) (i + 1)
+    | xs ! i <= x = go (swap i m xs) (m + 1) (i + 1)
     | otherwise = go xs m (i + 1)
 
 -- >>> quicksort 0 5 (fromList [5,4,3,2,1])
