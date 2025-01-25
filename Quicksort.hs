@@ -7,16 +7,16 @@ import Data.Tuple (Solo (..))
 -- swap :: Int -> Int -> DiffArray a -> DiffArray a
 -- swap !i !j !xs = set i (xs ! j) (set j (xs ! i) xs)
 
-swap :: Int -> Int -> DiffArray a -> DiffArray a
-swap !i !j !xs =
-  let
-    -- using this strict matching on MkSolo we
-    -- can ensure that the indexing happens
-    -- before the mutation (which would slow
-    -- down the indexing)
-    !(MkSolo x) = index i xs
-    !(MkSolo y) = index j xs
-  in set i y (set j x xs)
+-- swap :: Int -> Int -> DiffArray a -> DiffArray a
+-- swap !i !j !xs =
+--   let
+--     -- using this strict matching on MkSolo we
+--     -- can ensure that the indexing happens
+--     -- before the mutation (which would slow
+--     -- down the indexing)
+--     !(MkSolo x) = index i xs
+--     !(MkSolo y) = index j xs
+--   in set i y (set j x xs)
 
 {-# NOINLINE quicksort #-}
 quicksort :: Ord a => Int -> Int -> DiffArray a -> DiffArray a
