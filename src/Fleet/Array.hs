@@ -11,6 +11,11 @@ Stability   : experimental
 Portability : Portable
 
 This module defines fleet arrays and their basic interface.
+
+All the asymptotic complexities listed in this module assume you are modifying
+the latest version of the array. Otherwise the performance regresses to O(k),
+where k is the number of changes between the version you are accessing and the
+latest version.
 -}
 module Fleet.Array (Array, fromList, toList, (!), index, set, copy, swap, aseq) where
 
@@ -21,6 +26,7 @@ import Data.Kind (Type)
 
 data Op a = Set Int# a | Swap Int# Int#
 
+-- | Fleet arrays.
 data Array a = DA (MutVar# RealWorld (ArrayData a))
 type ArrayData :: Type -> UnliftedType
 data ArrayData a
@@ -76,7 +82,7 @@ DA v ! I# i = helper v i where
 
 -- | Indexing an array. O(1)
 -- Using the 'Solo' constructor, you can sequence indexing to happen before
--- future updates without having to evaluate the resulting element.
+-- future updates without having to evaluate the element itself.
 {-# INLINE index #-}
 index :: Int -> Array a -> Solo a
 index (I# i) (DA v) = helper v i where
