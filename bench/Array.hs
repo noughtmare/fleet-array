@@ -5,7 +5,6 @@ import GHC.Exts hiding (fromList)
 
 data Array a = A (MutableArray# RealWorld a)
 
-{-# NOINLINE fromList #-}
 fromList :: [a] -> Array a
 fromList xs = A (runRW# $ \s ->
   case newArray# (case length xs of I# x -> x) undefined s of

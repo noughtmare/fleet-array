@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
 module Quicksort (quicksort) where
 
-import DiffArray
+import Fleet.Array
 import Data.Tuple (Solo (..))
 
 -- swap :: Int -> Int -> DiffArray a -> DiffArray a
@@ -18,7 +18,7 @@ import Data.Tuple (Solo (..))
 --     !(MkSolo y) = index j xs
 --   in set i y (set j x xs)
 
-{-# NOINLINE quicksort #-}
+{-# INLINEABLE quicksort #-}
 quicksort :: Ord a => Int -> Int -> DiffArray a -> DiffArray a
 quicksort !l !r !xs
   | r - l <= 1 = xs
@@ -27,6 +27,7 @@ quicksort !l !r !xs
     case partition l (r - 1) xs x of
       (xs, m) -> quicksort l m (quicksort (m + 1) r (swap (r - 1) m xs))
 
+{-# INLINEABLE partition #-}
 partition :: Ord a => Int -> Int -> DiffArray a -> a -> (DiffArray a, Int)
 partition l r xs x = go xs l l where
   go !xs !m !i

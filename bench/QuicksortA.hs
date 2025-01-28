@@ -49,7 +49,7 @@ swap !arr !i !j = do
   writeMA arr i y
   writeMA arr j x
 
-{-# NOINLINE quicksort #-}
+{-# INLINEABLE quicksort #-}
 quicksort :: Ord a => MutArr a -> Int -> Int -> IO ()
 quicksort !arr !l !r
   | r - l <= 1 = pure ()
@@ -60,6 +60,7 @@ quicksort !arr !l !r
     quicksort arr (m + 1) r
     quicksort arr l m
 
+{-# INLINEABLE partition #-}
 partition :: Ord a => MutArr a -> Int -> Int -> a -> IO Int
 partition arr l r x = go arr l l where
   go !arr !m !i

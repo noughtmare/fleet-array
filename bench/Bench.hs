@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-typeable-binds -dno-suppress-type-signatures #-}
 import qualified Array
 import Test.Tasty.Bench
-import qualified DiffArray
-import DiffArray (DiffArray)
+import qualified Fleet.Array as DiffArray
+import Fleet.Array (DiffArray)
 import Quicksort (quicksort)
 import qualified QuicksortA
 

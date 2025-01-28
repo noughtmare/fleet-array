@@ -1,0 +1,41 @@
+cabal-version:   3.12
+name:            fleet-array
+version:         0.1.0.0
+license:         BSD-3-Clause
+license-file: LICENSE
+author:          Jaro Reinders
+maintainer:      jaro.reinders@gmail.com
+build-type:      Simple
+category: Data, Data Structures, Array
+synopsis: Fleet arrays are pure, but support fast updates in single-threaded use
+description:
+  Updating a pure array in Haskell usually requires copying the whole array,
+  which takes linear time. For constant-time array updates, you would need to
+  use a monadic interface, manually specifying the order of evaluation.  Fleet
+  arrays strike a balance between these two extremes. In common usage patterns,
+  where old versions of arrays not reused after they are updated, fleet arrays
+  support constant time indexing and updates. Accessing old versions does incur
+  performance overhead. We hope this package can form the basis of a pure
+  and performant array library.
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import: warnings
+    exposed-modules: Fleet.Array
+    build-depends: base ^>= {4.18}
+    hs-source-dirs: src/
+    default-language: GHC2021
+
+benchmark fleet-array-bench
+    import:           warnings
+    main-is:          Bench.hs
+    other-modules: Array, Quicksort, QuicksortA
+    build-depends:    base, fleet-array, tasty-bench ^>= {0.4.1}
+    hs-source-dirs:   bench/
+    default-language: GHC2021
+
+source-repository head
+  type:     git
+  location: https://github.com/noughtmare/fleet-array
