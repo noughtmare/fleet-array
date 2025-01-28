@@ -1,7 +1,18 @@
 {-# LANGUAGE MagicHash, UnboxedTuples, UnliftedDatatypes #-}
 {-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
 
-module Fleet.Array (Array, fromList, toList, (!), index, set, copy, swap) where
+{-|
+Module      : Fleet.Array
+Description : Fleet arrays
+Copyright   : (c) Jaro Reinders, 2025
+License     : BSD-3-Clause
+Maintainer  : jaro.reinders@gmail.com
+Stability   : experimental
+Portability : Portable
+
+This module defines fleet arrays and their basic interface.
+-}
+module Fleet.Array (Array, fromList, toList, (!), index, set, copy, swap, aseq) where
 
 import GHC.Exts hiding (fromList, toList)
 import Data.Tuple (Solo (MkSolo))
@@ -19,6 +30,11 @@ data ArrayData a
 instance Show a => Show (Array a) where
   show xs = "fromList " ++ show (toList xs)
 
+-- | Sequencing array operations.
+aseq :: a -> b -> b
+aseq x y = x `seq` lazy y
+
+-- | Convert a list into an array. O(n)
 fromList :: [a] -> Array a
 fromList xs = DA (runRW# $ \s ->
   case newArray# (case length xs of (I# n) -> n) undefined s of { (# s , arr #) ->
@@ -27,6 +43,7 @@ fromList xs = DA (runRW# $ \s ->
     go _ _ [] s = s
     go arr i (x:xs) s = go arr (i +# 1#) xs (writeArray# arr i x s)
 
+-- | Converting an array into a list. O(n)
 toList :: Array a -> [a]
 toList (DA v) = runRW# $ \s ->
   case copyInternal v s of { (# s, arr #) ->
@@ -41,6 +58,7 @@ toList (DA v) = runRW# $ \s ->
   in go 0# s
   }
 
+-- | Indexing an array. O(1)
 {-# INLINE (!) #-}
 (!) :: Array a -> Int -> a
 DA v ! I# i = helper v i where
@@ -56,6 +74,9 @@ DA v ! I# i = helper v i where
         | isTrue# (i ==# j2) -> helper xs j1
         | otherwise -> helper xs i
 
+-- | Indexing an array. O(1)
+-- Using the 'Solo' constructor, you can sequence indexing to happen before
+-- future updates without having to evaluate the resulting element.
 {-# INLINE index #-}
 index :: Int -> Array a -> Solo a
 index (I# i) (DA v) = helper v i where
@@ -131,10 +152,12 @@ appDiffOp op (DA v) = runRW# $ \s ->
 --         DA v''
 --       }}}}
 
+-- | Update the array element at a given position to a new value. O(1)
 {-# INLINE set #-}
 set :: Int -> a -> Array a -> Array a
 set (I# i) x = appDiffOp (Set i x)
 
+-- | Swap two elements in an array. O(1)
 {-# INLINE swap #-}
 swap :: Int -> Int -> Array a -> Array a
 swap (I# i) (I# j) = appDiffOp (Swap i j)
@@ -149,6 +172,9 @@ copyInternal v s =
       case appOp arr op s of { s -> (# s , arr #)
       }}
 
+-- | Copy an array. O(n)
+-- This detaches any future updates from old versions of the array.
+-- Use this when you know you will be updating a large part of an array.
 copy :: Array a -> Array a
 copy (DA v) = runRW# $ \s ->
   case copyInternal v s of { (# s , arr #) ->
