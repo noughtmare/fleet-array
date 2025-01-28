@@ -4,10 +4,10 @@ module Quicksort (quicksort) where
 import Fleet.Array
 import Data.Tuple (Solo (..))
 
--- swap :: Int -> Int -> DiffArray a -> DiffArray a
+-- swap :: Int -> Int -> Array a -> Array a
 -- swap !i !j !xs = set i (xs ! j) (set j (xs ! i) xs)
 
--- swap :: Int -> Int -> DiffArray a -> DiffArray a
+-- swap :: Int -> Int -> Array a -> Array a
 -- swap !i !j !xs =
 --   let
 --     -- using this strict matching on MkSolo we
@@ -19,7 +19,7 @@ import Data.Tuple (Solo (..))
 --   in set i y (set j x xs)
 
 {-# INLINEABLE quicksort #-}
-quicksort :: Ord a => Int -> Int -> DiffArray a -> DiffArray a
+quicksort :: Ord a => Int -> Int -> Array a -> Array a
 quicksort !l !r !xs
   | r - l <= 1 = xs
   | otherwise =
@@ -28,7 +28,7 @@ quicksort !l !r !xs
       (xs, m) -> quicksort l m (quicksort (m + 1) r (swap (r - 1) m xs))
 
 {-# INLINEABLE partition #-}
-partition :: Ord a => Int -> Int -> DiffArray a -> a -> (DiffArray a, Int)
+partition :: Ord a => Int -> Int -> Array a -> a -> (Array a, Int)
 partition l r xs x = go xs l l where
   go !xs !m !i
     | i == r = (xs, m)
