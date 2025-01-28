@@ -25,7 +25,7 @@ common warnings
 library
     import: warnings
     exposed-modules: Fleet.Array
-    build-depends: base ^>= {4.18}
+    build-depends: base ^>= {4.18,4.19,4.20}
     hs-source-dirs: src/
     default-language: GHC2021
 
