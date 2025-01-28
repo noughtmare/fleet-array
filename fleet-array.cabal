@@ -1,4 +1,4 @@
-cabal-version:   3.12
+cabal-version:   3.8
 name:            fleet-array
 version:         0.1.0.0
 license:         BSD-3-Clause
@@ -8,6 +8,7 @@ maintainer:      jaro.reinders@gmail.com
 build-type:      Simple
 category: Data, Data Structures, Array
 synopsis: Fleet arrays are pure, but support fast updates in single-threaded use
+tested-with: GHC ==9.10.1 || ==9.8.4 || ==9.6.6
 description:
   Updating a pure array in Haskell usually requires copying the whole array,
   which takes linear time. For constant-time array updates, you would need to
