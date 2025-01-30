@@ -1,5 +1,6 @@
 {-# LANGUAGE MagicHash, UnboxedTuples, UnliftedDatatypes #-}
 {-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
+{-# LANGUAGE LambdaCase #-}
 
 {-|
 Module      : Fleet.Array
@@ -19,10 +20,12 @@ latest version.
 -}
 module Fleet.Array (Array, fromList, toList, (!), index, set, copy, swap, aseq) where
 
-import GHC.Exts hiding (fromList, toList)
 import Data.Tuple (Solo (MkSolo))
+import GHC.Exts hiding (fromList, toList, Lifted)
 
 import Data.Kind (Type)
+import GHC.IO.Unsafe (unsafeDupablePerformIO)
+import GHC.Base (IO(IO), unIO)
 
 data Op a = Set Int# a | Swap Int# Int#
 
@@ -40,42 +43,82 @@ instance Show a => Show (Array a) where
 aseq :: a -> b -> b
 aseq x y = x `seq` lazy y
 
+type Lifted :: UnliftedType -> Type
+data Lifted a = Lifted a
+
+{-# INLINE newMutVarIO #-}
+newMutVarIO :: forall (a :: UnliftedType). a -> IO (Lifted (MutVar# RealWorld a))
+newMutVarIO x = IO $ \s ->
+  case newMutVar# x s of
+    (# s', v #) -> (# s', Lifted v #)
+
+{-# INLINE readMutVarIO #-}
+readMutVarIO :: forall (a :: UnliftedType) b. MutVar# RealWorld a -> (a -> IO b) -> IO b
+readMutVarIO v f = IO (\s -> case readMutVar# v s of (# s', x #) -> unIO (f x) s')
+
+{-# INLINE writeMutVarIO #-}
+writeMutVarIO :: forall (a :: UnliftedType). MutVar# RealWorld a -> a -> IO ()
+writeMutVarIO v x = IO (\s -> (# writeMutVar# v x s, () #))
+
+readArrayIO :: MutableArray# RealWorld a -> Int# -> IO a
+readArrayIO arr i = IO (readArray# arr i)
+
+writeArrayIO :: MutableArray# RealWorld a -> Int# -> a -> IO ()
+writeArrayIO arr i x = IO (\s -> (# writeArray# arr i x s, () #))
+
+newArrayIO :: Int# -> a -> IO (Lifted (MutableArray# RealWorld a))
+newArrayIO n x = IO $ \s ->
+  case newArray# n x s of
+    (# s', arr #) -> (# s', Lifted arr #)
+
 -- | Convert a list into an array. O(n)
 fromList :: [a] -> Array a
-fromList xs = DA (runRW# $ \s ->
-  case newArray# (case length xs of (I# n) -> n) undefined s of { (# s , arr #) ->
-  case newMutVar# (Current arr) (go arr 0# xs s) of { (# _ , x #) -> x
-  }}) where
-    go _ _ [] s = s
-    go arr i (x:xs) s = go arr (i +# 1#) xs (writeArray# arr i x s)
+fromList xs = unsafeDupablePerformIO $ do
+  let !(I# n) = length xs
+  Lifted arr <- newArrayIO n undefined
+  let go _ _ [] = pure ()
+      go arr i (x:xs') = writeArrayIO arr i x >> go arr (i +# 1#) xs'
+  go arr 0# xs
+  Lifted var <- newMutVarIO (Current arr)
+  pure (DA var)
+
+cloneMutableArrayIO :: MutableArray# RealWorld a -> Int# -> Int# -> IO (Lifted (MutableArray# RealWorld a))
+cloneMutableArrayIO arr off len = IO $ \s ->
+  case cloneMutableArray# arr off len s of
+    (# s', arr' #) -> (# s', Lifted arr' #)
+
+copyInternalIO :: MutVar# RealWorld (ArrayData a) -> IO (Lifted (MutableArray# RealWorld a))
+copyInternalIO v =
+  readMutVarIO v $ \case
+    Current arr -> cloneMutableArrayIO arr 0# (sizeofMutableArray# arr)
+    Diff op v' -> do
+      Lifted clone <- copyInternalIO v'
+      appOpIO clone op
+      pure (Lifted clone)
 
 -- | Converting an array into a list. O(n)
 toList :: Array a -> [a]
-toList (DA v) = runRW# $ \s ->
-  case copyInternal v s of { (# s, arr #) ->
-  let
-    n = sizeofMutableArray# arr
-    go i s
-      | isTrue# (i >=# n) = []
-      | otherwise =
-        case readArray# arr i s of
-        { (# s, x #) -> x : go (i +# 1#) s
-        }
-  in go 0# s
-  }
+toList (DA v) = unsafeDupablePerformIO $ do
+  Lifted arr <- copyInternalIO v
+  let n = sizeofMutableArray# arr
+      go i
+        | isTrue# (i >=# n) = pure []
+        | otherwise = do
+            x <- readArrayIO arr i
+            xs <- go (i +# 1#)
+            pure (x : xs)
+  go 0#
 
 -- | Indexing an array. O(1)
 {-# INLINE (!) #-}
 (!) :: Array a -> Int -> a
-DA v ! I# i = helper v i where
-  helper v i = runRW# $ \s ->
-    case readMutVar# v s of
-      (# s , Current arr #) ->
-        case readArray# arr i s of (# _ , x #) -> x
-      (# _ , Diff (Set j x) xs #)
-        | isTrue# (i ==# j) -> x
+DA v ! I# i = unsafeDupablePerformIO (helper v i) where
+    helper v i = readMutVarIO v $ \case
+      Current arr -> readArrayIO arr i
+      Diff (Set j x) xs
+        | isTrue# (i ==# j) -> pure x
         | otherwise -> helper xs i
-      (# _ , Diff (Swap j1 j2) xs #)
+      Diff (Swap j1 j2) xs
         | isTrue# (i ==# j1) -> helper xs j2
         | isTrue# (i ==# j2) -> helper xs j1
         | otherwise -> helper xs i
@@ -85,78 +128,49 @@ DA v ! I# i = helper v i where
 -- future updates without having to evaluate the element itself.
 {-# INLINE index #-}
 index :: Int -> Array a -> Solo a
-index (I# i) (DA v) = helper v i where
-  helper v i = runRW# $ \s ->
-    case readMutVar# v s of
-      (# s , Current arr #) ->
-        case readArray# arr i s of (# _ , x #) -> MkSolo x
-      (# _ , Diff (Set j x) xs #)
-        | isTrue# (i ==# j) -> MkSolo x
+index (I# i) (DA v) = unsafeDupablePerformIO (helper v i) where
+  helper v i = readMutVarIO v $ \case
+      Current arr -> MkSolo <$> readArrayIO arr i
+      Diff (Set j x) xs
+        | isTrue# (i ==# j) -> pure (MkSolo x)
         | otherwise -> helper xs i
-      (# _ , Diff (Swap j1 j2) xs #)
+      Diff (Swap j1 j2) xs
         | isTrue# (i ==# j1) -> helper xs j2
         | isTrue# (i ==# j2) -> helper xs j1
         | otherwise -> helper xs i
 
-{-# INLINE appOp #-}
-appOp :: MutableArray# RealWorld a -> Op a -> State# RealWorld -> State# RealWorld
-appOp arr (Set i x) s = writeArray# arr i x s
-appOp arr (Swap i j) s =
-  case readArray# arr i s of { (# s, x #) ->
-  case readArray# arr j s of { (# s, y #) ->
-  case writeArray# arr i y s of { s ->
-  writeArray# arr j x s
-  }}}
+{-# INLINE invertIO #-}
+invertIO :: MutableArray# RealWorld a -> Op a -> IO (Op a)
+invertIO _ (Swap i j) = pure (Swap i j)
+invertIO arr (Set i _) = do
+  y <- readArrayIO arr i
+  pure (Set i y)
 
-{-# INLINE invert #-}
-invert :: MutableArray# RealWorld a -> Op a -> State# RealWorld -> (# State# RealWorld, Op a #)
-invert _ (Swap i j) s = (# s , Swap i j #)
-invert arr (Set i _) s =
-  case readArray# arr i s of { (# s, y #) ->
-  (# s, Set i y #) }
+{-# INLINE appOpIO #-}
+appOpIO :: MutableArray# RealWorld a -> Op a -> IO ()
+appOpIO arr (Set i x) = writeArrayIO arr i x
+appOpIO arr (Swap i j) = do
+  x <- readArrayIO arr i
+  y <- readArrayIO arr j
+  writeArrayIO arr i y
+  writeArrayIO arr j x
 
 {-# INLINE appDiffOp #-}
 appDiffOp :: Op a -> Array a -> Array a
-appDiffOp op (DA v) = runRW# $ \s ->
-  case noDuplicate# s of { s ->
-  case readMutVar# v s of
-    (# s , xs@(Current arr) #) ->
-      case invert arr op s of { (# s, op' #) ->
-      case appOp arr op s of { s ->
-      case newMutVar# xs s of { (# s , v' #) ->
-      case writeMutVar# v (Diff op' v') s of { !_ ->
-        DA v'
-      }}}}
-    -- making a change to an old version of the array
-    -- we copy to anticipate more usage
-    (# s, Diff op' v' #) ->
-      case copyInternal v' s of { (# s , arr #) ->
-      case appOp arr op' s of { s ->
-      case appOp arr op s of { s ->
-      case newMutVar# (Current arr) s of { (# _ , v'' #) ->
-        DA v''
-      }}}}}
-
--- {-# INLINE appUndoOp #-}
--- appUndoOp :: Op a -> Array a -> Array a
--- appUndoOp op (DA v) = runRW# $ \s ->
---   case readMutVar# v s of
---     (# s , xs@(Current arr) #) ->
---       case invert arr op s of { (# s, op' #) ->
---       case appOp arr op s of { s ->
---       case newMutVar# xs s of { (# s , v' #) ->
---       case writeMutVar# v (Diff op' v') s of { !_ ->
---         DA v'
---       }}}}
---     -- making a change to an old version of the array
---     -- we roll back all changes
---     (# s, Diff op' v' #) ->
---       case appUndoOp ov' s of { (# s , arr #) ->
---       case appOp arr op s of { s ->
---       case appOp arr op s of { s ->
---       case newMutVar# (Current arr) s of { (# _ , v'' #) ->
---         DA v''
---       }}}}
+appDiffOp op (DA v) = unsafeDupablePerformIO $
+  readMutVarIO v $ \case
+    xs@(Current arr) -> do
+      op' <- invertIO arr op
+      appOpIO arr op
+      Lifted v' <- newMutVarIO xs
+      writeMutVarIO v (Diff op' v')
+      pure (DA v')
+    Diff op' v' -> do
+      Lifted arr <- copyInternalIO v'
+      appOpIO arr op'
+      appOpIO arr op
+      Lifted v'' <- newMutVarIO (Current arr)
+      pure (DA v'')
 
 -- | Update the array element at a given position to a new value. O(1)
 {-# INLINE set #-}
@@ -168,21 +182,11 @@ set (I# i) x = appDiffOp (Set i x)
 swap :: Int -> Int -> Array a -> Array a
 swap (I# i) (I# j) = appDiffOp (Swap i j)
 
-copyInternal :: MutVar# RealWorld (ArrayData a) -> State# RealWorld -> (# State# RealWorld, MutableArray# RealWorld a #)
-copyInternal v s =
-  case readMutVar# v s of
-    (# s , Current arr #) ->
-      cloneMutableArray# arr 0# (sizeofMutableArray# arr) s
-    (# s , Diff op v #) ->
-      case copyInternal v s of { (# s , arr #) ->
-      case appOp arr op s of { s -> (# s , arr #)
-      }}
-
 -- | Copy an array. O(n)
 -- This detaches any future updates from old versions of the array.
 -- Use this when you know you will be updating a large part of an array.
 copy :: Array a -> Array a
-copy (DA v) = runRW# $ \s ->
-  case copyInternal v s of { (# s , arr #) ->
-  case newMutVar# (Current arr) s of { (# _, v #) -> DA v
-  }}
+copy (DA v) = unsafeDupablePerformIO $ do
+  Lifted arr <- copyInternalIO v
+  Lifted var <- newMutVarIO (Current arr)
+  pure (DA var)
