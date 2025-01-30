@@ -7,7 +7,7 @@ author:          Jaro Reinders
 maintainer:      jaro.reinders@gmail.com
 build-type:      Simple
 category: Data, Data Structures, Array
-synopsis: Fleet arrays are pure, but support fast updates in single-threaded use
+synopsis: Fleet arrays are pure, but support fast updates if used linearly
 tested-with: GHC ==9.10.1 || ==9.8.4 || ==9.6.6
 description:
   Updating a pure array in Haskell usually requires copying the whole array,
@@ -18,6 +18,9 @@ description:
   support constant time indexing and updates. Accessing old versions does incur
   performance overhead. We hope this package can form the basis of a pure
   and performant array library.
+
+  Fleet arrays can be more than 10x faster than 'IntMap' if used densly and
+  linearly.
 
 common warnings
     ghc-options: -Wall
