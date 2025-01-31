@@ -21,13 +21,24 @@ the latest version of the array. Otherwise the performance regresses to O(k),
 where k is the number of changes between the version you are accessing and the
 latest version.
 -}
-module Fleet.Array (Array, fromList, toList, (!), index, set, copy, swap, aseq) where
+module Fleet.Array
+  ( Array
+  , fromList
+  , toList
+  , (!)
+  , index
+  , set
+  , copy
+  , swap
+  , pseq
+  ) where
 
 import Data.Tuple (Solo (MkSolo))
 import GHC.Exts hiding (fromList, toList, Lifted)
 
 import Data.Kind (Type)
 import GHC.IO.Unsafe (unsafeDupablePerformIO)
+import GHC.Conc (pseq)
 
 import Fleet.Array.MutVar
 import Fleet.Array.Lift
@@ -53,10 +64,6 @@ pattern Diff op v = Lift (Diff# op v)
 
 instance Show a => Show (Array a) where
   show xs = "fromList " ++ show (toList xs)
-
--- | Sequencing array operations.
-aseq :: a -> b -> b
-aseq x y = x `seq` lazy y
 
 -- | Convert a list into an array. O(n)
 fromList :: [a] -> Array a
@@ -92,6 +99,34 @@ toList (A v) = unsafeDupablePerformIO $ do
   go 0
 
 -- | Indexing an array. O(1)
+  --
+  -- __WARNING:__ If you were to write your own 'swap' function. You might be
+  -- tempted to write it like this:
+  --
+  -- > swap :: Int -> Int -> Array a -> Array a
+  -- > swap !i !j !xs = set i (xs ! j) (set j (xs ! i) xs)
+  --
+  -- Unfortunately, this leaves the order between the reads and writes undefined.
+  -- And in practice, GHC picks the wrong order. To enforce that reads happen
+  -- before writes, you can use 'pseq' like this:
+  --
+  -- > swap !i !j !xs =
+  -- >   let
+  -- >     x = xs ! i
+  -- >     y = xs ! j
+  -- >   in x `pseq` y `pseq` set i y (set j x xs)
+  --
+  -- If you want to avoid forcing the elements in the array, then you can use
+  -- 'index' like this:
+  --
+  -- > swap !i !j !xs =
+  -- >   let
+  -- >     x = index i xs
+  -- >     y = index j xs
+  -- >   in x `pseq` y `pseq` set i (getSolo y) (set j (getSolo x) xs)
+  --
+  -- In the future, we hope to write a GHC plugin that can automatically detect
+  -- when pseq is necessary in common cases.
 {-# INLINE (!) #-}
 (!) :: Array a -> Int -> a
 A v0 ! i0 = unsafeDupablePerformIO (go v0 i0) where
@@ -141,27 +176,28 @@ appOp arr (Swap i j) = do
   writeMutArray arr i y
   writeMutArray arr j x
 
+{-# INLINE reversePointers #-}
+reversePointers :: ArrayVar a -> IO (MutArray a)
+reversePointers v = do
+  dat <- readMutVar v
+  case dat of
+    Current arr -> pure arr
+    Diff op v' -> do
+      arr <- reversePointers v'
+      op' <- invert arr op
+      appOp arr op
+      writeMutVar v' (Diff op' v)
+      pure arr
+
 {-# INLINE appDiffOp #-}
 appDiffOp :: Op a -> Array a -> Array a
 appDiffOp op (A v) = unsafeDupablePerformIO $ do
-  dat <- readMutVar v
-  case dat of
-    xs@(Current arr) -> do
-      op' <- invert arr op
-      appOp arr op
-      v' <- newMutVar xs
-      writeMutVar v (Diff op' v')
-      pure (A v')
-    Diff op' v' -> do
-      -- TODO: pointer inversion instead of copy
-      -- first invert all pointers until Current
-      -- then apply all updates until back at v
-      -- then do the same as above
-      arr <- copyInternal v'
-      appOp arr op'
-      appOp arr op
-      v'' <- newMutVar (Current arr)
-      pure (A v'')
+  arr <- reversePointers v
+  op' <- invert arr op
+  appOp arr op
+  v' <- newMutVar (Current arr)
+  writeMutVar v (Diff op' v')
+  pure (A v')
 
 -- | Update the array element at a given position to a new value. O(1)
 {-# INLINE set #-}
