@@ -28,6 +28,7 @@ common warnings
 library
     import: warnings
     exposed-modules:  Fleet.Array
+    other-modules:    Fleet.Array.MutVar, Fleet.Array.Lift, Fleet.Array.MutArray
     build-depends:    base ^>= {4.18,4.19,4.20}
     hs-source-dirs:   src/
     default-language: GHC2021
