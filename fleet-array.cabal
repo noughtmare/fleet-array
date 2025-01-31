@@ -2,11 +2,11 @@ cabal-version:   3.8
 name:            fleet-array
 version:         0.1.0.0
 license:         BSD-3-Clause
-license-file: LICENSE
+license-file:    LICENSE
 author:          Jaro Reinders
 maintainer:      jaro.reinders@gmail.com
 build-type:      Simple
-category: Data, Data Structures, Array
+category:        Data, Data Structures, Array
 synopsis: Fleet arrays are pure, but support fast updates if used linearly
 tested-with: GHC ==9.10.1 || ==9.8.4 || ==9.6.6
 description:
@@ -27,16 +27,16 @@ common warnings
 
 library
     import: warnings
-    exposed-modules: Fleet.Array
-    build-depends: base ^>= {4.18,4.19,4.20}
-    hs-source-dirs: src/
+    exposed-modules:  Fleet.Array
+    build-depends:    base ^>= {4.18,4.19,4.20}
+    hs-source-dirs:   src/
     default-language: GHC2021
 
 benchmark fleet-array-bench
     import:           warnings
     main-is:          Bench.hs
-    other-modules: Array, Quicksort, QuicksortA
-    build-depends:    base, fleet-array, tasty-bench ^>= {0.4.1}
+    other-modules:    Array, Quicksort, QuicksortA, QuicksortIM
+    build-depends:    base, fleet-array, tasty-bench ^>= {0.4.1}, containers
     hs-source-dirs:   bench/
     default-language: GHC2021
 

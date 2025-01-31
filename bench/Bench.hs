@@ -4,6 +4,8 @@ import Test.Tasty.Bench
 import qualified Fleet.Array as Fleet
 import Quicksort (quicksort)
 import qualified QuicksortA
+import qualified QuicksortIM
+import qualified Data.List as List
 
 class Indexable a where
   (!) :: a -> Int -> Int
@@ -59,4 +61,6 @@ main = do
     , bench "quicksort array" $ whnfIO (QuicksortA.clone marr >>= \marr' -> QuicksortA.quicksort marr' 0 9973)
     , bench "quicksort fleet" $ whnf (Quicksort.quicksort 0 9973) (Fleet.copy arr0)
     , bench "quicksort fleet copy" $ whnf (Quicksort.quicksort 0 9973 . Fleet.copy) arr0
+    , bench "quicksort intmap" $ whnf (QuicksortIM.quicksort 0 9973) (QuicksortIM.fromList list)
+    , bench "sort" $ nf (\xs -> List.sort xs) list
     ]
