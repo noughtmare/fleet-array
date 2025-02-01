@@ -121,9 +121,9 @@ toList (A v) = unsafeDupablePerformIO $ do
   --
   -- > swap !i !j !xs =
   -- >   let
-  -- >     x = index i xs
-  -- >     y = index j xs
-  -- >   in x `pseq` y `pseq` set i (getSolo y) (set j (getSolo x) xs)
+  -- >     x@(MkSolo x') = index i xs
+  -- >     y@(MkSolo y') = index j xs
+  -- >   in x `pseq` y `pseq` set i y' (set j x' xs)
   --
   -- In the future, we hope to write a GHC plugin that can automatically detect
   -- when pseq is necessary in common cases.

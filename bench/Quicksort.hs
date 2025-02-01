@@ -2,29 +2,15 @@
 module Quicksort (quicksort) where
 
 import Fleet.Array
-import Data.Tuple (Solo (..))
-
--- swap :: Int -> Int -> Array a -> Array a
--- swap !i !j !xs = set i (xs ! j) (set j (xs ! i) xs)
-
--- swap :: Int -> Int -> Array a -> Array a
--- swap !i !j !xs =
---   let
---     -- using this strict matching on MkSolo we
---     -- can ensure that the indexing happens
---     -- before the mutation (which would slow
---     -- down the indexing)
---     !(MkSolo x) = index i xs
---     !(MkSolo y) = index j xs
---   in set i y (set j x xs)
+import Data.Tuple (Solo (MkSolo))
 
 {-# INLINEABLE quicksort #-}
 quicksort :: Ord a => Int -> Int -> Array a -> Array a
 quicksort !l !r !xs
   | r - l <= 1 = xs
   | otherwise =
-    let !(MkSolo x) = index (r - 1) xs in
-    case partition l (r - 1) xs x of
+    let x@(MkSolo x') = index (r - 1) xs in
+    x `pseq` case partition l (r - 1) xs x' of
       (xs, m) -> quicksort l m (quicksort (m + 1) r (swap (r - 1) m xs))
 
 {-# INLINEABLE partition #-}
