@@ -22,6 +22,14 @@ description:
   Fleet arrays can be more than 10x faster than 'IntMap' if used densly and
   linearly.
 
+  The ideas behind fleet arrays are due to
+  [Baker in 1991](https://doi.org/10.1145/122598.122614), who called them shallow
+  arrays. These ideas were first implemented in Haskell by Simon Marlow as part
+  of GHC (now moved to the
+  [diffarray](https://hackage.haskell.org/package/diffarray) package).
+  Fleet arrays provide a simpler vector-like interface and offer better
+  performance.
+
 common warnings
     ghc-options: -Wall
 
