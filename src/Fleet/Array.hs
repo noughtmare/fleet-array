@@ -24,6 +24,7 @@ latest version.
 module Fleet.Array
   ( Array
   , fromList
+  , replicate
   , toList
   , (!)
   , index
@@ -33,16 +34,22 @@ module Fleet.Array
   , pseq
   ) where
 
+import Prelude hiding (replicate)
+
 import Data.Tuple (Solo (MkSolo))
 import GHC.Exts hiding (fromList, toList, Lifted)
 
 import Data.Kind (Type)
-import GHC.IO.Unsafe (unsafeDupablePerformIO)
 import GHC.Conc (pseq)
+import GHC.Base (IO (IO))
+-- import GHC.IO.Unsafe (unsafeDupablePerformIO)
 
 import Fleet.Array.MutVar
 import Fleet.Array.Lift
 import Fleet.Array.MutArray
+
+unsafeDupablePerformIO :: IO a -> a
+unsafeDupablePerformIO (IO f) = runRW# (\s -> case f s of (# _ , x #) -> x)
 
 data Op a = Set {-# UNPACK #-} !Int a | Swap {-# UNPACK #-} !Int {-# UNPACK #-} !Int
 
@@ -75,11 +82,18 @@ fromList xs = unsafeDupablePerformIO $ do
   v <- newMutVar (Current arr0)
   pure (A v)
 
+replicate :: Int -> a -> Array a
+replicate n x = unsafeDupablePerformIO $ do
+  arr <- newMutArray n x
+  v <- newMutVar (Current arr)
+  pure (A v)
+
 copyInternal :: ArrayVar a -> IO (MutArray a)
 copyInternal v = do
   av <- readMutVar v
   case av of
     Current arr -> cloneMutArray arr 0 (sizeofMutArray arr)
+    -- _ -> error "Accessing old version"
     Diff op v' -> do
       clone <- copyInternal v'
       appOp clone op
@@ -134,6 +148,7 @@ A v0 ! i0 = unsafeDupablePerformIO (go v0 i0) where
     dat <- readMutVar v
     case dat of
       Current arr -> readMutArray arr i
+      -- _ -> error "Accessing old version"
       Diff (Set j x) v'
         | i == j -> pure x
         | otherwise -> go v' i
@@ -152,6 +167,7 @@ index i0 (A v0) = unsafeDupablePerformIO (go v0 i0) where
     dat <- readMutVar v
     case dat of
       Current arr -> MkSolo <$> readMutArray arr i
+      -- _ -> error "Accessing old version"
       Diff (Set j x) xs
         | i == j -> pure (MkSolo x)
         | otherwise -> go xs i
@@ -182,12 +198,22 @@ reversePointers v = do
   dat <- readMutVar v
   case dat of
     Current arr -> pure arr
-    Diff op v' -> do
-      arr <- reversePointers v'
-      op' <- invert arr op
-      appOp arr op
-      writeMutVar v' (Diff op' v)
-      pure arr
+    Diff op v' -> reversePointersDiff v op v'
+
+-- this needs to be a separate function, because we want the good weather path
+-- (where dat = Current ...) to inline and optimize. The recursion in this
+-- function, which prevents inlining, thus needs to be extracted from
+-- reversePointers.
+reversePointersDiff :: ArrayVar a -> Op a -> ArrayVar a -> IO (MutArray a)
+reversePointersDiff v op v' = do
+  dat <- readMutVar v'
+  arr <- case dat of
+    Current arr -> pure arr
+    Diff op' v'' -> reversePointersDiff v' op' v''
+  op' <- invert arr op
+  appOp arr op
+  writeMutVar v' (Diff op' v)
+  pure arr
 
 {-# INLINE appDiffOp #-}
 appDiffOp :: Op a -> Array a -> Array a

@@ -3,9 +3,11 @@ import qualified Array
 import Test.Tasty.Bench
 import qualified Fleet.Array as Fleet
 import Quicksort (quicksort)
-import qualified QuicksortA
+import qualified QuicksortMA
 import qualified QuicksortIM
 import qualified Data.List as List
+import qualified Eratosthenes as Fleet
+import qualified EratosthenesMA as MA
 
 class Indexable a where
   (!) :: a -> Int -> Int
@@ -49,18 +51,27 @@ main = do
     !arr2 = Fleet.set 0 0 arr3
     !arr1 = Fleet.set 0 0 arr2
     !arr0 = Fleet.set 0 0 arr1
-  !marr <- QuicksortA.fromList list
+  !marr <- QuicksortMA.fromList list
   defaultMain
-    [ bench "array" $ whnf fooA (Array.fromList list)
-    , bench "fleet" $ whnf fooDA arr0
-    , bench "fleet 1" $ whnf fooDA arr1
-    , bench "fleet 2" $ whnf fooDA arr2
-    , bench "fleet 5" $ whnf fooDA arr5
-    , bench "fleet 7" $ whnf fooDA arr7
-    , bench "fleet 10" $ whnf fooDA arr10
-    , bench "quicksort array" $ whnfIO (QuicksortA.clone marr >>= \marr' -> QuicksortA.quicksort marr' 0 9973)
-    , bench "quicksort fleet" $ whnf (Quicksort.quicksort 0 9973) (Fleet.copy arr0)
-    , bench "quicksort fleet copy" $ whnf (Quicksort.quicksort 0 9973 . Fleet.copy) arr0
-    , bench "quicksort intmap" $ whnf (QuicksortIM.quicksort 0 9973) (QuicksortIM.fromList list)
-    , bench "sort" $ nf (\xs -> List.sort xs) list
+    [ bgroup "read"
+      [ bench "array" $ whnf fooA (Array.fromList list)
+      , bench "fleet" $ whnf fooDA arr0
+      -- reading old versions:
+      , bench "fleet 1" $ whnf fooDA arr1
+      , bench "fleet 2" $ whnf fooDA arr2
+      , bench "fleet 5" $ whnf fooDA arr5
+      , bench "fleet 7" $ whnf fooDA arr7
+      , bench "fleet 10" $ whnf fooDA arr10
+      ]
+    , bgroup "quicksort"
+      [ bench "MutArr" $ whnfIO (QuicksortMA.clone marr >>= \marr' -> QuicksortMA.quicksort marr' 0 9973)
+      , bench "Fleet" $ whnf (Quicksort.quicksort 0 9973) (Fleet.copy arr0)
+      , bench "Fleet copy" $ whnf (Quicksort.quicksort 0 9973 . Fleet.copy) arr0
+      , bench "IntMap" $ whnf (QuicksortIM.quicksort 0 9973) (QuicksortIM.fromList list)
+      , bench "List.sort" $ nf (\xs -> List.sort xs) list
+      ]
+    , bgroup "sieve"
+      [ bench "fleet" $ nf Fleet.sieve 100000
+      , bench "MutArr" $ nfIO (MA.sieve 100000)
+      ]
     ]
