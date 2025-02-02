@@ -11,4 +11,4 @@ sieve n = go 2 (Fleet.replicate (n + 1) True) where
     | otherwise = go (p + 1) xs
   go' !d !i !xs
     | i > n = xs
-    | otherwise = go' d (i + d) (set i False xs)
+    | otherwise = go' d (i + d) (if xs ! i then set i False xs else xs)
