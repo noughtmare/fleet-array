@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
-module Quicksort (quicksort) where
+module Example.Fleet.Quicksort (quicksort) where
 
 import Fleet.Array
 import Data.Tuple (Solo (MkSolo))

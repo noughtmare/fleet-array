@@ -1,5 +1,5 @@
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
-module MutArr where
+module Example.MutArr.MutArr where
 
 import GHC.Exts
 import GHC.Base

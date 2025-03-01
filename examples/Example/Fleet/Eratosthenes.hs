@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -O2 #-}
-module Eratosthenes where
+module Example.Fleet.Eratosthenes where
 
 import Fleet.Array as Fleet
 

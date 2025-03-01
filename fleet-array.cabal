@@ -58,12 +58,7 @@ benchmark fleet-array-bench
     import:           warnings
     main-is:          Bench.hs
     other-modules:    Array
-                    , Quicksort
-                    , QuicksortMA
                     , QuicksortIM
-                    , Eratosthenes
-                    , EratosthenesMA
-                    , MutArr
     build-depends:    base, fleet-array, fleet-array:examples, tasty-bench ^>= {0.4.1}, containers
     hs-source-dirs:   bench/
     default-language: GHC2021
