@@ -2,12 +2,12 @@
 import qualified Array
 import Test.Tasty.Bench
 import qualified Fleet.Array as Fleet
-import Quicksort (quicksort)
-import qualified QuicksortMA
+import qualified Example.Fleet.Quicksort as Quicksort
+import qualified Example.MutArr.Quicksort as QuicksortMA
 import qualified QuicksortIM
 import qualified Data.List as List
-import qualified Eratosthenes as Fleet
-import qualified EratosthenesMA as MA
+import qualified Example.Fleet.Eratosthenes as Fleet
+import qualified Example.MutArr.Eratosthenes as MA
 
 class Indexable a where
   (!) :: a -> Int -> Int
@@ -34,11 +34,6 @@ list = 0:take 9972 (iterate (\x -> (x * 9962) `rem` 9973) 9962)
 
 main :: IO ()
 main = do
-  let
-    arrA = Array.fromList list
-    arrDA = Fleet.fromList list
-  print $ fooA arrA
-  print $ fooDA arrDA
   let
     !arr10 = Fleet.fromList list
     !arr9 = Fleet.set 0 0 arr10

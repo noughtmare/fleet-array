@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds -ddump-stg-final -ddump-stg-from-core -ddump-prep #-}
 {-# OPTIONS_GHC -O2 #-}
-module EratosthenesMA where
+module Example.MutArr.Eratosthenes where
 
-import MutArr as MA
+import Example.MutArr.MutArr as MA
 
 sieve :: Int -> IO [Int]
 sieve n = do

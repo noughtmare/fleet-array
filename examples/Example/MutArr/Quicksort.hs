@@ -1,8 +1,8 @@
 {-# LANGUAGE MagicHash, UnboxedTuples #-}
 {-# OPTIONS_GHC -Wno-name-shadowing -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -dno-typeable-binds #-}
-module QuicksortMA (MutArr, fromList, toList, clone, quicksort) where
+module Example.MutArr.Quicksort (MutArr, fromList, toList, clone, quicksort) where
 
-import MutArr
+import Example.MutArr.MutArr
 
 {-# INLINEABLE quicksort #-}
 quicksort :: Ord a => MutArr a -> Int -> Int -> IO ()

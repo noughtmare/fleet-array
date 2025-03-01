@@ -243,3 +243,13 @@ copy (A v) = unsafeDupablePerformIO $ do
   arr <- copyInternal v
   var <- newMutVar (Current arr)
   pure (A var)
+
+unsafeAppDiffOp :: Op a -> Array a -> Array a
+unsafeAppDiffOp op (A v) = unsafeDupablePerformIO $ do
+  readMutVar v >>= \case
+    Current arr -> do
+      appOp arr op
+      pure (A v) -- reusing 'v' like this avoids allocating, but it will cause
+                 -- old versions to silently give wrong results.
+                 -- I don't see an easy option that avoids silent breakage
+    _ -> error "Unsafe operation encountered old array version."

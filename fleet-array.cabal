@@ -41,6 +41,19 @@ library
     hs-source-dirs:   src/
     default-language: GHC2021
 
+library examples
+    import: warnings
+    exposed-modules:
+      Example.Fleet.Quicksort,
+      Example.Fleet.Eratosthenes,
+      Example.MutArr.Quicksort,
+      Example.MutArr.Eratosthenes
+    other-modules:
+      Example.MutArr.MutArr
+    build-depends: base, fleet-array
+    hs-source-dirs: examples/
+    default-language: GHC2021
+
 benchmark fleet-array-bench
     import:           warnings
     main-is:          Bench.hs
@@ -51,7 +64,7 @@ benchmark fleet-array-bench
                     , Eratosthenes
                     , EratosthenesMA
                     , MutArr
-    build-depends:    base, fleet-array, tasty-bench ^>= {0.4.1}, containers
+    build-depends:    base, fleet-array, fleet-array:examples, tasty-bench ^>= {0.4.1}, containers
     hs-source-dirs:   bench/
     default-language: GHC2021
 
