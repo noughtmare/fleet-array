@@ -28,6 +28,7 @@ module Fleet.Array
   , toList
   , (!)
   , index
+  , tag
   , set
   , copy
   , swap
@@ -36,7 +37,6 @@ module Fleet.Array
 
 import Prelude hiding (replicate)
 
-import Data.Tuple (Solo (MkSolo))
 import GHC.Exts hiding (fromList, toList, Lifted)
 
 import Data.Kind (Type)
@@ -157,24 +157,54 @@ A v0 ! i0 = unsafeDupablePerformIO (go v0 i0) where
         | i == j2 -> go v' j1
         | otherwise -> go v' i
 
+data Token = Token (State# RealWorld)
+
+returnToken :: a -> IO (a, Token)
+returnToken x = IO (\s -> (# s , (x, Token s) #))
+
 -- | Indexing an array. O(1)
--- Using the 'Solo' constructor, you can sequence indexing to happen before
--- future updates without having to evaluate the element itself.
+--
+-- The tuple and 'Token' serve two purposes:
+--
+-- - You can now separately force the evaluation of the tuple and the actual
+--   array element
+-- - You can use the 'Token' to with the 'tag' function on an array to force
+--   the indexing to happen before the array can be written to.
 {-# INLINE index #-}
-index :: Int -> Array a -> Solo a
+index :: Int -> Array a -> (a, Token)
 index i0 (A v0) = unsafeDupablePerformIO (go v0 i0) where
   go v i = do
     dat <- readMutVar v
     case dat of
-      Current arr -> MkSolo <$> readMutArray arr i
+      Current arr -> readMutArray arr i >>= returnToken
       -- _ -> error "Accessing old version"
       Diff (Set j x) xs
-        | i == j -> pure (MkSolo x)
+        | i == j -> returnToken x
         | otherwise -> go xs i
       Diff (Swap j1 j2) xs
         | i == j1 -> go xs j2
         | i == j2 -> go xs j1
         | otherwise -> go xs i
+
+-- | This is a no-op, but can be used to enforce an ordering between indexing
+-- and other array operations, to avoid the overhead of indexing from older
+-- versions of the array.
+--
+-- For example, swapping two elements in an array by using 'index'
+-- and 'set' can be done like this:
+--
+-- @
+-- swap :: Int -> Int -> Array a -> Array a
+-- swap i j xs =
+--   let (x, t1) = index i xs
+--       (y, t2) = index j xs
+--   in set i y (set j x (tag t1 (tag t2 xs)))
+-- @
+--
+-- This ensures the indexing happens before the setting.
+{-# NOINLINE tag #-}
+tag :: Token -> Array a -> Array a
+tag (Token _) xs = xs
 
 {-# INLINE invert #-}
 invert :: MutArray a -> Op a -> IO (Op a)

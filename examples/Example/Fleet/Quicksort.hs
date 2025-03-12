@@ -2,15 +2,14 @@
 module Example.Fleet.Quicksort (quicksort) where
 
 import Fleet.Array
-import Data.Tuple (Solo (MkSolo))
 
 {-# INLINEABLE quicksort #-}
 quicksort :: Ord a => Int -> Int -> Array a -> Array a
 quicksort !l !r !xs
   | r - l <= 1 = xs
   | otherwise =
-    let x@(MkSolo x') = index (r - 1) xs in
-    x `pseq` case partition l (r - 1) xs x' of
+    let (x', t) = index (r - 1) xs in
+    case partition l (r - 1) (tag t xs) x' of
       (xs, m) -> quicksort l m (quicksort (m + 1) r (swap (r - 1) m xs))
 
 {-# INLINEABLE partition #-}
